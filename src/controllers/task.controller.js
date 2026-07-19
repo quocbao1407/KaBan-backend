@@ -2,19 +2,14 @@ const Task = require("../models/task.model");
 
 // GET /api/tasks
 exports.getAllTasks = (req, res) => {
-    Task.getAllTasks((err, results) => {
+    const userId = req.user_id; // Lấy ID của người đang đăng nhập từ Token
+
+    Task.getAllTasks(userId, (err, results) => {
         if (err) {
             console.error("Lỗi lấy danh sách task:", err);
-            return res.status(500).json({
-                success: false,
-                message: "Lỗi database"
-            });
+            return res.status(500).json({ success: false, message: "Lỗi database" });
         }
-
-        res.json({
-            success: true,
-            data: results
-        });
+        res.json({ success: true, data: results });
     });
 };
 
@@ -22,27 +17,18 @@ exports.getAllTasks = (req, res) => {
 // GET /api/tasks/:id
 exports.getTaskById = (req, res) => {
     const { id } = req.params;
+    const userId = req.user_id; // Gắn thêm ID người dùng
 
-    Task.getTaskById(id, (err, results) => {
+    Task.getTaskById(id, userId, (err, results) => {
         if (err) {
             console.error("Lỗi lấy task:", err);
-            return res.status(500).json({
-                success: false,
-                message: "Lỗi database"
-            });
+            return res.status(500).json({ success: false, message: "Lỗi database" });
         }
 
         if (results.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "Không tìm thấy task"
-            });
+            return res.status(404).json({ success: false, message: "Không tìm thấy task hoặc bạn không có quyền truy cập" });
         }
-
-        res.json({
-            success: true,
-            data: results[0]
-        });
+        res.json({ success: true, data: results[0] });
     });
 };
 
@@ -50,48 +36,34 @@ exports.getTaskById = (req, res) => {
 // POST /api/tasks
 exports.createTask = (req, res) => {
     const { title, description, status, deadline, board_id } = req.body;
+    const userId = req.user_id; // Ai đăng nhập thì lấy ID người đó
 
-    // Validate title
     if (!title || title.trim() === "") {
-        return res.status(400).json({
-            success: false,
-            message: "Tiêu đề task không được để trống!"
-        });
+        return res.status(400).json({ success: false, message: "Tiêu đề task không được để trống!" });
     }
-
-    // Validate board
     if (!board_id) {
-        return res.status(400).json({
-            success: false,
-            message: "board_id là bắt buộc!"
-        });
+        return res.status(400).json({ success: false, message: "board_id là bắt buộc!" });
     }
 
     const taskData = {
         title: title.trim(),
         description: description || null,
         status: status || "To Do",
-        // Chuyển chuỗi deadline thành object Date để MySQL dễ lưu, nếu không có thì null
         deadline: deadline ? new Date(deadline) : null, 
-        board_id
+        board_id,
+        user_id: userId // Nhét thêm user_id vào gói dữ liệu để lưu xuống DB
     };
 
     Task.createTask(taskData, (err, results) => {
         if (err) {
             console.error("Lỗi tạo task:", err);
-            return res.status(500).json({
-                success: false,
-                message: "Lỗi database"
-            });
+            return res.status(500).json({ success: false, message: "Lỗi database" });
         }
 
         res.status(201).json({
             success: true,
             message: "Tạo task thành công!",
-            data: {
-                task_id: results.insertId,
-                ...taskData
-            }
+            data: { task_id: results.insertId, ...taskData }
         });
     });
 };
@@ -100,41 +72,35 @@ exports.createTask = (req, res) => {
 // PUT /api/tasks/:id
 exports.updateTask = (req, res) => {
     const { id } = req.params;
+    const userId = req.user_id;
     const { title, description, status, deadline } = req.body;
 
-    // BƯỚC 1: Lấy dữ liệu CŨ của task lên trước để bảo toàn thông tin
-    Task.getTaskById(id, (err, results) => {
+    // BƯỚC 1: Tìm đúng task của user đó
+    Task.getTaskById(id, userId, (err, results) => {
         if (err) {
             console.error("Lỗi lấy task để update:", err);
             return res.status(500).json({ success: false, message: "Lỗi database" });
         }
-        
         if (results.length === 0) {
-            return res.status(404).json({ success: false, message: "Không tìm thấy task" });
+            return res.status(404).json({ success: false, message: "Không tìm thấy task hoặc không có quyền sửa" });
         }
-
         const oldTask = results[0];
 
-        // BƯỚC 2: Gom dữ liệu (Nếu FE có gửi thì xài data mới, nếu gửi thiếu thì xài data cũ)
+        // BƯỚC 2: Gom dữ liệu
         const taskData = {
             title: title !== undefined ? title : oldTask.title,
             description: description !== undefined ? description : oldTask.description,
             status: status !== undefined ? status : oldTask.status,
-            // Xử lý ngày tháng: Convert sang Date để tránh lỗi ISO string
             deadline: deadline !== undefined ? (deadline ? new Date(deadline) : null) : oldTask.deadline
         };
 
-        // BƯỚC 3: Cập nhật xuống DB bằng dữ liệu đã hoàn thiện
-        Task.updateTask(id, taskData, (updateErr, updateResults) => {
+        // BƯỚC 3: Cập nhật xuống DB
+        Task.updateTask(id, userId, taskData, (updateErr, updateResults) => {
             if (updateErr) {
                 console.error("Lỗi update task:", updateErr);
                 return res.status(500).json({ success: false, message: "Lỗi database" });
             }
-
-            res.json({
-                success: true,
-                message: "Cập nhật task thành công!"
-            });
+            res.json({ success: true, message: "Cập nhật task thành công!" });
         });
     });
 };
@@ -143,26 +109,16 @@ exports.updateTask = (req, res) => {
 // DELETE /api/tasks/:id
 exports.deleteTask = (req, res) => {
     const { id } = req.params;
+    const userId = req.user_id;
 
-    Task.deleteTask(id, (err, results) => {
+    Task.deleteTask(id, userId, (err, results) => {
         if (err) {
             console.error("Lỗi xóa task:", err);
-            return res.status(500).json({
-                success: false,
-                message: "Lỗi database"
-            });
+            return res.status(500).json({ success: false, message: "Lỗi database" });
         }
-
         if (results.affectedRows === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "Không tìm thấy task"
-            });
+            return res.status(404).json({ success: false, message: "Không tìm thấy task hoặc không có quyền xóa" });
         }
-
-        res.json({
-            success: true,
-            message: "Xóa task thành công!"
-        });
+        res.json({ success: true, message: "Xóa task thành công!" });
     });
 };

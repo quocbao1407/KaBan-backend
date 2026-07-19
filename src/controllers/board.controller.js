@@ -2,7 +2,9 @@ const Board = require("../models/board.model");
 
 // GET /api/boards
 exports.getAllBoards = (req, res) => {
-    Board.getAll((err, results) => {
+    const userId = req.user_id; // Lấy ID của user đang đăng nhập từ Token
+
+    Board.getAll(userId, (err, results) => {
         if (err) {
             return res.status(500).json({
                 success: false,
@@ -20,8 +22,9 @@ exports.getAllBoards = (req, res) => {
 // GET /api/boards/:id
 exports.getBoardById = (req, res) => {
     const id = req.params.id;
+    const userId = req.user_id; // Gắn thêm ID user
 
-    Board.getById(id, (err, results) => {
+    Board.getById(id, userId, (err, results) => {
         if (err) {
             return res.status(500).json({
                 success: false,
@@ -32,7 +35,7 @@ exports.getBoardById = (req, res) => {
         if (results.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "Không tìm thấy board"
+                message: "Không tìm thấy board hoặc bạn không có quyền truy cập"
             });
         }
 
@@ -42,18 +45,20 @@ exports.getBoardById = (req, res) => {
         });
     });
 };
+
 // POST /api/boards
 exports.createBoard = (req, res) => {
-    const { user_id, name } = req.body;
+    const { name } = req.body; 
+    const userId = req.user_id; // BẮT BUỘC lấy user_id từ Token (bảo mật)
 
-    if (!user_id || !name) {
+    if (!name) {
         return res.status(400).json({
             success: false,
-            message: "user_id và name không được để trống"
+            message: "Tên board không được để trống"
         });
     }
 
-    Board.create(user_id, name, (err, result) => {
+    Board.create(userId, name, (err, result) => {
         if (err) {
             return res.status(500).json({
                 success: false,
@@ -67,10 +72,12 @@ exports.createBoard = (req, res) => {
         });
     });
 };
+
 // PUT /api/boards/:id
 exports.updateBoard = (req, res) => {
     const id = req.params.id;
     const { name } = req.body;
+    const userId = req.user_id; // Gắn thêm ID user
 
     if (!name) {
         return res.status(400).json({
@@ -79,7 +86,8 @@ exports.updateBoard = (req, res) => {
         });
     }
 
-    Board.update(id, name, (err, result) => {
+    // Cập nhật board cần khớp cả id của board và userId
+    Board.update(id, userId, name, (err, result) => {
         if (err) {
             return res.status(500).json({
                 success: false,
@@ -93,11 +101,13 @@ exports.updateBoard = (req, res) => {
         });
     });
 };
+
 // DELETE /api/boards/:id
 exports.deleteBoard = (req, res) => {
     const id = req.params.id;
+    const userId = req.user_id; // Gắn thêm ID user
 
-    Board.delete(id, (err, result) => {
+    Board.delete(id, userId, (err, result) => {
         if (err) {
             return res.status(500).json({
                 success: false,
@@ -108,7 +118,7 @@ exports.deleteBoard = (req, res) => {
         if (result.affectedRows === 0) {
             return res.status(404).json({
                 success: false,
-                message: "Không tìm thấy board"
+                message: "Không tìm thấy board hoặc không có quyền xóa"
             });
         }
 
