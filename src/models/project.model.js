@@ -31,9 +31,9 @@ const Project = {
                     if (err) return callback(err, null);
 
                     const membersSql = `
-                        SELECT u.id AS user_id, u.email, pm.role 
+                        SELECT u.id AS user_id, u.name, u.email, pm.role 
                         FROM Project_Members pm 
-                        JOIN users u ON pm.user_id = u.id 
+                        JOIN Users u ON pm.user_id = u.id 
                         WHERE pm.project_id = ?
                     `;
                     db.query(membersSql, [projectId], (err, membersRes) => {
