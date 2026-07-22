@@ -13,9 +13,8 @@ const Project = {
         db.query(sql, [userId], callback);
     },
     
-    // Thêm hàm này vào đối tượng Project trong file src/models/project.model.js
+    // Cập nhật lại hàm getProjectById trong src/models/project.model.js
     getProjectById: (projectId, userId, callback) => {
-    // 1. Kiểm tra xem user có thuộc project này không (Phân quyền)
         const checkMemberSql = `SELECT role FROM Project_Members WHERE project_id = ? AND user_id = ?`;
         db.query(checkMemberSql, [projectId, userId], (err, memberRes) => {
             if (err) return callback(err, null);
@@ -23,25 +22,35 @@ const Project = {
                 return callback(new Error("Unauthorized"), null);
             }
 
-        // 2. Lấy thông tin dự án
-        const projectSql = `SELECT * FROM Projects WHERE project_id = ?`;
-        db.query(projectSql, [projectId], (err, projectRes) => {
-            if (err) return callback(err, null);
-            if (projectRes.length === 0) return callback(new Error("NotFound"), null);
-
-            // 3. Lấy danh sách task thuộc dự án
-            const tasksSql = `SELECT * FROM task WHERE project_id = ?`;
-            db.query(tasksSql, [projectId], (err, tasksRes) => {
+            const projectSql = `SELECT * FROM Projects WHERE project_id = ?`;
+            db.query(projectSql, [projectId], (err, projectRes) => {
                 if (err) return callback(err, null);
+                if (projectRes.length === 0) return callback(new Error("NotFound"), null);
 
-                callback(null, {
-                    project: projectRes[0],
-                    tasks: tasksRes
+                const tasksSql = `SELECT * FROM task WHERE project_id = ?`;
+                db.query(tasksSql, [projectId], (err, tasksRes) => {
+                    if (err) return callback(err, null);
+
+                    // Lấy thêm danh sách thành viên thuộc dự án để phục vụ việc phân công task
+                    const membersSql = `
+                        SELECT u.user_id, u.name, u.email, pm.role 
+                        FROM Project_Members pm 
+                        JOIN users u ON pm.user_id = u.user_id 
+                        WHERE pm.project_id = ?
+                    `;
+                    db.query(membersSql, [projectId], (err, membersRes) => {
+                        if (err) return callback(err, null);
+
+                        callback(null, {
+                            project: projectRes[0],
+                            tasks: tasksRes,
+                            members: membersRes // Trả về danh sách thành viên
+                        });
+                    });
                 });
             });
         });
-    });
-},  
+    },
 
     // 2. Tạo dự án mới (Đã sửa lại cho phù hợp với kết nối đơn của bạn)
     createProject: (name, description, userId, callback) => {
