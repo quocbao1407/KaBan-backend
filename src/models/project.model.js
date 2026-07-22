@@ -13,7 +13,6 @@ const Project = {
         db.query(sql, [userId], callback);
     },
     
-    // Cập nhật lại hàm getProjectById trong src/models/project.model.js
     getProjectById: (projectId, userId, callback) => {
         const checkMemberSql = `SELECT role FROM Project_Members WHERE project_id = ? AND user_id = ?`;
         db.query(checkMemberSql, [projectId, userId], (err, memberRes) => {
@@ -31,9 +30,8 @@ const Project = {
                 db.query(tasksSql, [projectId], (err, tasksRes) => {
                     if (err) return callback(err, null);
 
-                    // Lấy thêm danh sách thành viên thuộc dự án để phục vụ việc phân công task
                     const membersSql = `
-                        SELECT u.id AS user_id, u.name, u.email, pm.role 
+                        SELECT u.id AS user_id, u.email, pm.role 
                         FROM Project_Members pm 
                         JOIN users u ON pm.user_id = u.id 
                         WHERE pm.project_id = ?
@@ -44,7 +42,7 @@ const Project = {
                         callback(null, {
                             project: projectRes[0],
                             tasks: tasksRes,
-                            members: membersRes // Trả về danh sách thành viên
+                            members: membersRes
                         });
                     });
                 });
