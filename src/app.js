@@ -8,7 +8,11 @@ const projectRoutes = require("./routes/project.routes");
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+    origin: '*', // Cho phép mọi nguồn (localhost, domain web...) truy cập
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Các hành động được phép
+    allowedHeaders: ['Content-Type', 'Authorization'] // Cho phép gửi Token
+}));
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
