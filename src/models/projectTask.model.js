@@ -3,7 +3,7 @@ const db = require("../config/db");
 const ProjectTask = {
     // 1. Lấy danh sách task của một dự án cụ thể
     getTasksByProject: (projectId, callback) => {
-        const sql = "SELECT * FROM task WHERE project_id = ? ORDER BY created_at DESC";
+        const sql = "SELECT * FROM task WHERE project_id = ? ORDER BY task_id DESC";
         db.query(sql, [projectId], callback);
     },
 
@@ -25,14 +25,14 @@ const ProjectTask = {
 
             const { title, description, status, deadline, priority, assigned_to } = taskData;
             
+            // Đã lược bỏ các cột created_by và updated_at để khớp với bảng task cơ bản
             const sql = `
-                INSERT INTO task (project_id, created_by, assigned_to, title, description, priority, status, deadline, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                INSERT INTO task (project_id, assigned_to, title, description, priority, status, deadline) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             `;
             
             db.query(sql, [
                 projectId,
-                userId, // created_by
                 assigned_to || userId,
                 title,
                 description || '',
@@ -48,7 +48,7 @@ const ProjectTask = {
         const { title, description, status, deadline, priority, assigned_to } = taskData;
         const sql = `
             UPDATE task 
-            SET title = ?, description = ?, status = ?, deadline = ?, priority = ?, assigned_to = ?, updated_at = NOW() 
+            SET title = ?, description = ?, status = ?, deadline = ?, priority = ?, assigned_to = ? 
             WHERE task_id = ?
         `;
         db.query(sql, [
