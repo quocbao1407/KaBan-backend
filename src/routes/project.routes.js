@@ -11,4 +11,6 @@ router.get('/', verifyToken, projectController.getAllProjects);
 // API Tạo dự án mới (POST)
 router.post('/', verifyToken, projectController.createProject);
 
+router.get('/:projectId', verifyToken, projectController.getProjectDetail);
+
 module.exports = router;

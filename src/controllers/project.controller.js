@@ -47,3 +47,27 @@ exports.createProject = (req, res) => {
         });
     });
 };
+
+exports.getProjectDetail = (req, res) => {
+    const projectId = req.params.projectId;
+    const userId = req.user_id; // Đã được middleware xác thực token gắn vào
+
+    Project.getProjectById(projectId, userId, (err, data) => {
+        if (err) {
+            if (err.message === "Unauthorized") {
+                return res.status(403).json({ success: false, message: "Bạn không có quyền truy cập dự án này!" });
+            }
+            if (err.message === "NotFound") {
+                return res.status(404).json({ success: false, message: "Không tìm thấy dự án!" });
+            }
+            console.error("Lỗi lấy chi tiết dự án:", err);
+            return res.status(500).json({ success: false, message: "Lỗi máy chủ!" });
+        }
+
+        return res.status(200).json({
+            success: true,
+            project: data.project,
+            tasks: data.tasks
+        });
+    });
+};

@@ -12,6 +12,35 @@ const Project = {
         `;
         db.query(sql, [userId], callback);
     },
+        // Thêm hàm này vào đối tượng Project trong file src/models/project.model.js
+    getProjectById: (projectId, userId, callback) => {
+    // 1. Kiểm tra xem user có thuộc project này không (Phân quyền)
+        const checkMemberSql = `SELECT role FROM project_members WHERE project_id = ? AND user_id = ?`;
+        db.query(checkMemberSql, [projectId, userId], (err, memberRes) => {
+            if (err) return callback(err, null);
+            if (memberRes.length === 0) {
+                return callback(new Error("Unauthorized"), null);
+            }
+
+        // 2. Lấy thông tin dự án
+        const projectSql = `SELECT * FROM projects WHERE project_id = ?`;
+        db.query(projectSql, [projectId], (err, projectRes) => {
+            if (err) return callback(err, null);
+            if (projectRes.length === 0) return callback(new Error("NotFound"), null);
+
+            // 3. Lấy danh sách task thuộc dự án
+            const tasksSql = `SELECT * FROM tasks WHERE project_id = ?`;
+            db.query(tasksSql, [projectId], (err, tasksRes) => {
+                if (err) return callback(err, null);
+
+                callback(null, {
+                    project: projectRes[0],
+                    tasks: tasksRes
+                });
+            });
+        });
+    });
+},  
 
     // 2. Tạo dự án mới (Đã sửa lại cho phù hợp với kết nối đơn của bạn)
     createProject: (name, description, userId, callback) => {
