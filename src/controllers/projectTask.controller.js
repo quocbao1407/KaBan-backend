@@ -38,3 +38,17 @@ exports.createProjectTask = (req, res) => {
         });
     });
 };
+
+// Cập nhật thông tin hoặc trạng thái task
+exports.updateTask = (req, res) => {
+    const taskId = req.params.taskId;
+    const taskData = req.body;
+
+    ProjectTask.updateTask(taskId, taskData, (err, result) => {
+        if (err) {
+            console.error("Lỗi cập nhật task:", err);
+            return res.status(500).json({ success: false, message: "Lỗi máy chủ!" });
+        }
+        return res.status(200).json({ success: true, message: "Cập nhật công việc thành công!" });
+    });
+};
