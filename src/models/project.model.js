@@ -1,7 +1,7 @@
 const db = require("../config/db");
 
 const Project = {
-    // Lấy danh sách dự án mà user đang tham gia (GIỮ NGUYÊN)
+    // 1. Lấy danh sách dự án
     getProjectsByUser: (userId, callback) => {
         const sql = `
             SELECT p.project_id, p.name, p.created_at, pm.role 
@@ -13,58 +13,37 @@ const Project = {
         db.query(sql, [userId], callback);
     },
 
-    // Tạo dự án mới (Viết lại bằng Callback để chống sập)
+    // 2. Tạo dự án mới (Đã sửa lại cho phù hợp với kết nối đơn của bạn)
     createProject: (name, description, userId, callback) => {
-        // Dùng getConnection để bắt đầu Transaction an toàn
-        db.getConnection((err, connection) => {
+        
+        // Bắt đầu Transaction trực tiếp trên biến db
+        db.beginTransaction((err) => {
             if (err) return callback(err, null);
 
-            connection.beginTransaction((err) => {
+            // Bước 1: Thêm dự án vào bảng projects
+            const insertProjectSql = 'INSERT INTO projects (name, description) VALUES (?, ?)';
+            db.query(insertProjectSql, [name, description], (err, projectResult) => {
                 if (err) {
-                    connection.release();
-                    return callback(err, null);
+                    return db.rollback(() => callback(err, null));
                 }
 
-                // 1. Tạo project (Nếu CSDL của bạn không có cột description thì xóa bỏ chữ description đi nhé)
-                // Giả định Database của bạn CÓ cột description:
-                const insertProjectSql = 'INSERT INTO projects (name, description) VALUES (?, ?)';
-                const projectValues = [name, description];
-                
-                // NẾU DATABASE CHỈ CÓ TÊN, DÙNG DÒNG NÀY THAY THẾ:
-                // const insertProjectSql = 'INSERT INTO projects (name) VALUES (?)';
-                // const projectValues = [name];
+                const projectId = projectResult.insertId;
 
-                connection.query(insertProjectSql, projectValues, (err, projectResult) => {
+                // Bước 2: Thêm User vào bảng project_members với quyền Leader
+                const insertMemberSql = 'INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?)';
+                db.query(insertMemberSql, [projectId, userId, 'Leader'], (err, memberResult) => {
                     if (err) {
-                        return connection.rollback(() => {
-                            connection.release();
-                            callback(err, null);
-                        });
+                        return db.rollback(() => callback(err, null));
                     }
 
-                    const projectId = projectResult.insertId;
-
-                    // 2. Thêm user vào bảng member với quyền Leader
-                    const insertMemberSql = 'INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?)';
-                    connection.query(insertMemberSql, [projectId, userId, 'Leader'], (err, memberResult) => {
+                    // Bước 3: Hoàn tất Transaction
+                    db.commit((err) => {
                         if (err) {
-                            return connection.rollback(() => {
-                                connection.release();
-                                callback(err, null);
-                            });
+                            return db.rollback(() => callback(err, null));
                         }
-
-                        // 3. Hoàn tất Transaction
-                        connection.commit((err) => {
-                            if (err) {
-                                return connection.rollback(() => {
-                                    connection.release();
-                                    callback(err, null);
-                                });
-                            }
-connection.release(); // Trả kết nối lại cho pool
-                            callback(null, { project_id: projectId, name, description, role: 'Leader' });
-                        });
+                        
+                        // Trả về dữ liệu thành công
+                        callback(null, { project_id: projectId, name, description, role: 'Leader' });
                     });
                 });
             });
