@@ -33,9 +33,9 @@ const Project = {
 
                     // Lấy thêm danh sách thành viên thuộc dự án để phục vụ việc phân công task
                     const membersSql = `
-                        SELECT u.user_id, u.name, u.email, pm.role 
+                        SELECT u.id AS user_id, u.name, u.email, pm.role 
                         FROM Project_Members pm 
-                        JOIN users u ON pm.user_id = u.user_id 
+                        JOIN users u ON pm.user_id = u.id 
                         WHERE pm.project_id = ?
                     `;
                     db.query(membersSql, [projectId], (err, membersRes) => {
