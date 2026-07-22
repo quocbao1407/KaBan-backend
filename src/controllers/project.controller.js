@@ -67,7 +67,8 @@ exports.getProjectDetail = (req, res) => {
         return res.status(200).json({
             success: true,
             project: data.project,
-            tasks: data.tasks
+            tasks: data.tasks,
+            members: data.members
         });
     });
 };
