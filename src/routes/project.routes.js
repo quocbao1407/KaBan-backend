@@ -22,4 +22,7 @@ router.get('/:projectId/tasks', verifyToken, projectTaskController.getProjectTas
 // API Tạo task mới trong dự án (POST)
 router.post('/:projectId/tasks', verifyToken, projectTaskController.createProjectTask);
 
+// API Thêm thành viên vào dự án
+router.post('/:projectId/members', verifyToken, projectController.addMember);
+
 module.exports = router;

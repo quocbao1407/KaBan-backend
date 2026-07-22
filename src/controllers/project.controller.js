@@ -72,3 +72,30 @@ exports.getProjectDetail = (req, res) => {
         });
     });
 };
+
+exports.addMember = (req, res) => {
+    const projectId = req.params.projectId;
+    const { email, role } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ success: false, message: "Email thành viên là bắt buộc!" });
+    }
+
+    Project.addMemberToProject(projectId, email, role, (err, result) => {
+        if (err) {
+            if (err.message === "UserNotFound") {
+                return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản với email này trong hệ thống!" });
+            }
+            if (err.message === "AlreadyMember") {
+                return res.status(400).json({ success: false, message: "Thành viên này đã có trong dự án rồi!" });
+            }
+            console.error("Lỗi thêm thành viên:", err);
+            return res.status(500).json({ success: false, message: "Lỗi máy chủ!" });
+        }
+
+        return res.status(201).json({
+            success: true,
+            message: "Thêm thành viên vào dự án thành công!"
+        });
+    });
+};

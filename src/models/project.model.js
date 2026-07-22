@@ -87,4 +87,31 @@ const Project = {
     }
 };
 
+// Thêm thành viên vào dự án bằng email
+addMemberToProject: (projectId, email, role, callback) => {
+    // 1. Tìm user_id từ email trong bảng users
+    const findUserSql = "SELECT id FROM users WHERE email = ?";
+    db.query(findUserSql, [email], (err, userRes) => {
+        if (err) return callback(err, null);
+        if (userRes.length === 0) {
+            return callback(new Error("UserNotFound"), null);
+        }
+
+        const userId = userRes[0].id;
+
+        // 2. Kiểm tra xem user này đã là thành viên của dự án chưa
+        const checkExistSql = "SELECT * FROM Project_Members WHERE project_id = ? AND user_id = ?";
+        db.query(checkExistSql, [projectId, userId], (err, existRes) => {
+            if (err) return callback(err, null);
+            if (existRes.length > 0) {
+                return callback(new Error("AlreadyMember"), null);
+            }
+
+            // 3. Thêm vào bảng Project_Members
+            const insertSql = "INSERT INTO Project_Members (project_id, user_id, role) VALUES (?, ?, ?)";
+            db.query(insertSql, [projectId, userId, role || 'Member'], callback);
+        });
+    });
+}
+
 module.exports = Project;
