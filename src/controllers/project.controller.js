@@ -15,6 +15,7 @@ exports.getAllProjects = (req, res) => {
 
 // Hàm tạo dự án mới
 exports.createProject = (req, res) => {
+    console.log("🚨 ĐÃ LỌT VÀO CONTROLLER. Dữ liệu nhận được:", req.body, "User ID:", req.user_id);
     // 1. Lấy dữ liệu từ Frontend gửi lên (cả name và description)
     const { name, description } = req.body;
     
