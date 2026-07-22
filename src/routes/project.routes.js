@@ -1,23 +1,14 @@
-const express = require("express");
-const cors = require("cors");
+const express = require('express');
+const router = express.Router();
+const projectController = require('../controllers/project.controller');
 
-const authRoutes = require("./routes/auth.routes");
-const boardRoutes = require("./routes/board.routes");
-const taskRoutes = require("./routes/task.routes");
+// Import middleware xác thực đúng chuẩn (lùi ra 1 thư mục bằng ../ rồi mới vào middleware)
+const authMiddleware = require('../middleware/auth.middleware'); 
 
-const app = express();
+// API Lấy danh sách dự án (GET)
+router.get('/', authMiddleware, projectController.getAllProjects);
 
-app.use(cors());
-app.use(express.json());
+// API Tạo dự án mới (POST)
+router.post('/', authMiddleware, projectController.createProject);
 
-app.use("/api/auth", authRoutes);
-app.use("/api/boards", boardRoutes);
-app.use("/api/tasks", taskRoutes);
-
-app.get("/", (req, res) => {
-    res.json({
-        message: "Backend is running"
-    });
-});
-
-module.exports = app;
+module.exports = router;
