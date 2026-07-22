@@ -13,6 +13,7 @@ const Project = {
         db.query(sql, [userId], callback);
     },
     
+    // 2. Lấy chi tiết dự án (kèm thông tin thành viên có u.name và u.email)
     getProjectById: (projectId, userId, callback) => {
         const checkMemberSql = `SELECT role FROM Project_Members WHERE project_id = ? AND user_id = ?`;
         db.query(checkMemberSql, [projectId, userId], (err, memberRes) => {
@@ -50,14 +51,11 @@ const Project = {
         });
     },
 
-    // 2. Tạo dự án mới (Đã sửa lại cho phù hợp với kết nối đơn của bạn)
+    // 3. Tạo dự án mới (Đã sửa sạch lỗi cú pháp transaction)
     createProject: (name, description, userId, callback) => {
-        
-        // Bắt đầu Transaction trực tiếp trên biến db
         db.beginTransaction((err) => {
             if (err) return callback(err, null);
 
-            // Bước 1: Thêm dự án vào bảng Projects
             const insertProjectSql = 'INSERT INTO Projects (name, description) VALUES (?, ?)';
             db.query(insertProjectSql, [name, description], (err, projectResult) => {
                 if (err) {
@@ -65,53 +63,48 @@ const Project = {
                 }
 
                 const projectId = projectResult.insertId;
-
-                // Bước 2: Thêm User vào bảng Project_Members với quyền Leader
                 const insertMemberSql = 'INSERT INTO Project_Members (project_id, user_id, role) VALUES (?, ?, ?)';
+                
                 db.query(insertMemberSql, [projectId, userId, 'Leader'], (err, memberResult) => {
                     if (err) {
                         return db.rollback(() => callback(err, null));
                     }
-                    // Bước 3: Hoàn tất Transaction (Đã tách db.commit xuống dòng mới để tránh lỗi cú pháp)
+
                     db.commit((err) => {
                         if (err) {
                             return db.rollback(() => callback(err, null));
                         }
                         
-                        // Trả về dữ liệu thành công
                         callback(null, { project_id: projectId, name, description, role: 'Leader' });
                     });
                 });
             });
         });
-    }
-};
+    },
 
-// Thêm thành viên vào dự án bằng email
-addMemberToProject: (projectId, email, role, callback) => {
-    // 1. Tìm user_id từ email trong bảng users
-    const findUserSql = "SELECT id FROM users WHERE email = ?";
-    db.query(findUserSql, [email], (err, userRes) => {
-        if (err) return callback(err, null);
-        if (userRes.length === 0) {
-            return callback(new Error("UserNotFound"), null);
-        }
-
-        const userId = userRes[0].id;
-
-        // 2. Kiểm tra xem user này đã là thành viên của dự án chưa
-        const checkExistSql = "SELECT * FROM Project_Members WHERE project_id = ? AND user_id = ?";
-        db.query(checkExistSql, [projectId, userId], (err, existRes) => {
+    // 4. Thêm thành viên vào dự án bằng email (Đã đổi 'users' thành 'Users' viết hoa)
+    addMemberToProject: (projectId, email, role, callback) => {
+        const findUserSql = "SELECT id FROM Users WHERE email = ?";
+        db.query(findUserSql, [email], (err, userRes) => {
             if (err) return callback(err, null);
-            if (existRes.length > 0) {
-                return callback(new Error("AlreadyMember"), null);
+            if (userRes.length === 0) {
+                return callback(new Error("UserNotFound"), null);
             }
 
-            // 3. Thêm vào bảng Project_Members
-            const insertSql = "INSERT INTO Project_Members (project_id, user_id, role) VALUES (?, ?, ?)";
-            db.query(insertSql, [projectId, userId, role || 'Member'], callback);
+            const userId = userRes[0].id;
+
+            const checkExistSql = "SELECT * FROM Project_Members WHERE project_id = ? AND user_id = ?";
+            db.query(checkExistSql, [projectId, userId], (err, existRes) => {
+                if (err) return callback(err, null);
+                if (existRes.length > 0) {
+                    return callback(new Error("AlreadyMember"), null);
+                }
+
+                const insertSql = "INSERT INTO Project_Members (project_id, user_id, role) VALUES (?, ?, ?)";
+                db.query(insertSql, [projectId, userId, role || 'Member'], callback);
+            });
         });
-    });
-}
+    }
+};
 
 module.exports = Project;
