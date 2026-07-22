@@ -14,6 +14,7 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization'] // Cho phép gửi Token
 }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/boards", boardRoutes);
