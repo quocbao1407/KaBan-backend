@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const authController = require("../controllers/auth.controller");
-const verifyToken = require("../middleware/auth.middleware"); // Đường dẫn tới middleware xác thực token
+
+// Đã sửa: Dùng { verifyToken } để giải nén đúng hàm từ file middleware
+const { verifyToken } = require("../middleware/auth.middleware");
 
 router.get("/test", (req, res) => {
     res.json({
