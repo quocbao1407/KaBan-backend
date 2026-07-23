@@ -1,10 +1,22 @@
 const db = require("../config/db");
 
 const Project = {
-    // 1. Lấy danh sách dự án
+    // 1. Lấy danh sách dự án (Đã bổ sung p.description và lấy tên Trưởng dự án - Leader)
     getProjectsByUser: (userId, callback) => {
         const sql = `
-            SELECT p.project_id, p.name, p.created_at, pm.role 
+            SELECT 
+                p.project_id, 
+                p.name, 
+                p.description, 
+                p.created_at, 
+                pm.role,
+                (
+                    SELECT u.name 
+                    FROM Project_Members pm2 
+                    JOIN Users u ON pm2.user_id = u.id 
+                    WHERE pm2.project_id = p.project_id AND LOWER(pm2.role) = 'leader' 
+                    LIMIT 1
+                ) AS creator_name
             FROM Projects p
             JOIN Project_Members pm ON p.project_id = pm.project_id
             WHERE pm.user_id = ?
@@ -51,7 +63,7 @@ const Project = {
         });
     },
 
-    // 3. Tạo dự án mới (Đã sửa sạch lỗi cú pháp transaction)
+    // 3. Tạo dự án mới
     createProject: (name, description, userId, callback) => {
         db.beginTransaction((err) => {
             if (err) return callback(err, null);
@@ -82,7 +94,7 @@ const Project = {
         });
     },
 
-    // 4. Thêm thành viên vào dự án bằng email (Đã đổi 'users' thành 'Users' viết hoa)
+    // 4. Thêm thành viên vào dự án bằng email
     addMemberToProject: (projectId, email, role, callback) => {
         const findUserSql = "SELECT id FROM Users WHERE email = ?";
         db.query(findUserSql, [email], (err, userRes) => {

@@ -99,3 +99,32 @@ exports.addMember = (req, res) => {
         });
     });
 };
+
+// Thêm hàm deleteProject vào project.controller.js
+exports.deleteProject = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user_id;
+
+  try {
+    // Kiểm tra xem user có phải Leader dự án không
+    const [members] = await db.query(
+      'SELECT role FROM project_members WHERE project_id = ? AND user_id = ?',
+      [id, userId]
+    );
+
+    if (members.length === 0 || members[0].role !== 'leader') {
+      return res.status(403).json({ message: 'Chỉ Trưởng dự án (Leader) mới được phép xóa dự án này!' });
+    }
+
+    // Xóa tất cả tasks liên quan trước
+    await db.query('DELETE FROM tasks WHERE project_id = ?', [id]);
+    // Xóa tất cả thành viên trong dự án
+    await db.query('DELETE FROM project_members WHERE project_id = ?', [id]);
+    // Xóa dự án
+    await db.query('DELETE FROM projects WHERE project_id = ?', [id]);
+
+    return res.json({ message: 'Đã xóa dự án thành công!' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Lỗi khi xóa dự án!', error: error.message });
+  }
+};

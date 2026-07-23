@@ -32,4 +32,6 @@ router.put('/:projectId/tasks/:taskId', verifyToken, projectTaskController.updat
 router.put('/:projectId/tasks/:taskId', verifyToken, projectTaskController.updateProjectTask);
 router.delete('/:projectId/tasks/:taskId', verifyToken, projectTaskController.deleteProjectTask);
 
+router.delete("/:id", verifyToken, projectController.deleteProject);
+
 module.exports = router;
