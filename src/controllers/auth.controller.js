@@ -44,7 +44,7 @@ exports.register = async (req, res) => {
 };
 
 
-// --- 2. HÀM ĐĂNG NHẬP (Đã sửa chuẩn cú pháp jwt.sign) ---
+// --- 2. HÀM ĐĂNG NHẬP (ĐÃ THÊM ROLE VÀO JWT TOKEN) ---
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -74,9 +74,12 @@ exports.login = async (req, res) => {
                 return res.status(400).json({ success: false, message: "Sai mật khẩu!" });
             }
 
-            // Cấp thẻ Token (JWT)
+            // Cấp thẻ Token (JWT) - ĐÃ BỔ SUNG KHÓA ROLE
             const token = jwt.sign(
-                { id: user.id },
+                {
+                    id: user.id, 
+                    role: user.role || 'user' // 👈 Bổ sung role vào payload của Token
+                },
                 process.env.JWT_SECRET, 
                 { expiresIn: '1d' }
             );
@@ -161,5 +164,5 @@ exports.changePassword = async (req, res) => {
         });
     } catch (error) {
         return res.status(500).json({ success: false, message: "Server Error" });
-        }
+    }
 };
