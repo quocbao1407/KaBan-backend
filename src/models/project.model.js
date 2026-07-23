@@ -119,4 +119,35 @@ const Project = {
     }
 };
 
+// Thêm vào bên trong đối tượng Project trong file src/models/project.model.js
+
+deleteProject: (projectId, userId, callback) => {
+    // 1. Kiểm tra xem người dùng có phải Leader của dự án không
+    const checkLeaderSql = "SELECT role FROM Project_Members WHERE project_id = ? AND user_id = ?";
+    
+    db.query(checkLeaderSql, [projectId, userId], (err, members) => {
+        if (err) return callback(err, null);
+
+        if (members.length === 0 || (members[0].role || '').toLowerCase() !== 'leader') {
+            return callback(new Error("Unauthorized"), null);
+        }
+
+        // 2. Xóa tất cả các task liên quan trong bảng 'task'
+        const deleteTasksSql = "DELETE FROM task WHERE project_id = ?";
+        db.query(deleteTasksSql, [projectId], (err) => {
+            if (err) return callback(err, null);
+
+            // 3. Xóa tất cả thành viên trong bảng 'Project_Members'
+            const deleteMembersSql = "DELETE FROM Project_Members WHERE project_id = ?";
+            db.query(deleteMembersSql, [projectId], (err) => {
+                if (err) return callback(err, null);
+
+                // 4. Xóa dự án trong bảng 'Projects'
+                const deleteProjectSql = "DELETE FROM Projects WHERE project_id = ?";
+                db.query(deleteProjectSql, [projectId], callback);
+            });
+        });
+    });
+}
+
 module.exports = Project;

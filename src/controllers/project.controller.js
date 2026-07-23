@@ -100,49 +100,31 @@ exports.addMember = (req, res) => {
     });
 };
 
-// Thay thế hàm deleteProject trong src/controllers/project.controller.js
+// Cập nhật hàm deleteProject trong file src/controllers/project.controller.js
+
 exports.deleteProject = (req, res) => {
-  // Lấy ID dự án (chấp nhận cả req.params.id hoặc req.params.projectId)
-  const projectId = req.params.projectId || req.params.id;
-  const userId = req.user_id;
+    const projectId = req.params.projectId || req.params.id;
+    const userId = req.user_id;
 
-  // 1. Kiểm tra xem người dùng có phải Leader của dự án không
-  const checkLeaderSql = 'SELECT role FROM Project_Members WHERE project_id = ? AND user_id = ?';
-  
-  db.query(checkLeaderSql, [projectId, userId], (err, members) => {
-    if (err) {
-      console.error("Lỗi kiểm tra quyền xóa dự án:", err);
-      return res.status(500).json({ success: false, message: 'Lỗi máy chủ khi kiểm tra quyền!' });
-    }
-
-    if (members.length === 0 || (members[0].role || '').toLowerCase() !== 'leader') {
-      return res.status(403).json({ success: false, message: 'Chỉ Trưởng dự án (Leader) mới được phép xóa dự án này!' });
-    }
-
-    // 2. Xóa tất cả công việc thuộc dự án này (Bảng task)
-    const deleteTasksSql = 'DELETE FROM task WHERE project_id = ?';
-    db.query(deleteTasksSql, [projectId], (err) => {
-      if (err) console.error("Lỗi xóa tasks liên quan:", err);
-
-      // 3. Xóa tất cả thành viên thuộc dự án này (Bảng Project_Members)
-      const deleteMembersSql = 'DELETE FROM Project_Members WHERE project_id = ?';
-      db.query(deleteMembersSql, [projectId], (err) => {
+    Project.deleteProject(projectId, userId, (err, result) => {
         if (err) {
-          console.error("Lỗi xóa thành viên dự án:", err);
-          return res.status(500).json({ success: false, message: 'Lỗi CSDL khi xóa thành viên dự án!' });
+            if (err.message === "Unauthorized") {
+                return res.status(403).json({ 
+                    success: false, 
+                    message: "Chỉ Trưởng dự án (Leader) mới được phép xóa dự án này!" 
+                });
+            }
+            console.error("Lỗi xóa dự án:", err);
+            return res.status(500).json({ 
+                success: false, 
+                message: "Lỗi máy chủ khi xóa dự án!", 
+                errorDetail: err.message 
+            });
         }
 
-        // 4. Xóa chính dự án (Bảng Projects)
-        const deleteProjectSql = 'DELETE FROM Projects WHERE project_id = ?';
-        db.query(deleteProjectSql, [projectId], (err) => {
-          if (err) {
-            console.error("Lỗi xóa dự án:", err);
-            return res.status(500).json({ success: false, message: 'Lỗi CSDL khi xóa dự án!' });
-          }
-
-          return res.status(200).json({ success: true, message: 'Đã xóa dự án thành công!' });
+        return res.status(200).json({ 
+            success: true, 
+            message: "Đã xóa dự án thành công!" 
         });
-      });
     });
-  });
 };
