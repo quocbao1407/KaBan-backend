@@ -3,35 +3,34 @@ const router = express.Router();
 const projectController = require('../controllers/project.controller');
 const projectTaskController = require('../controllers/projectTask.controller');
 
-// Import đúng tên hàm verifyToken (có dấu ngoặc nhọn)
+// Import đúng tên hàm verifyToken
 const { verifyToken } = require('../middleware/auth.middleware'); 
 
-// API Lấy danh sách dự án (GET)
+// ==================== CÁC ROUTE DỰ ÁN ====================
+// Lấy danh sách dự án (GET)
 router.get('/', verifyToken, projectController.getAllProjects);
 
-// API Tạo dự án mới (POST)
+// Tạo dự án mới (POST)
 router.post('/', verifyToken, projectController.createProject);
 
-// API Lấy chi tiết dự án kèm danh sách task (GET)
+// Lấy chi tiết dự án kèm danh sách task (GET)
 router.get('/:projectId', verifyToken, projectController.getProjectDetail);
 
-// ==================== CÁC ROUTE TASK CỦA DỰ ÁN ====================
-// API Lấy danh sách task trong dự án (GET)
-router.get('/:projectId/tasks', verifyToken, projectTaskController.getProjectTasks);
+// Xóa dự án (DELETE)
+router.delete('/:projectId', verifyToken, projectController.deleteProject);
 
-// API Tạo task mới trong dự án (POST)
-router.post('/:projectId/tasks', verifyToken, projectTaskController.createProjectTask);
-
-// API Thêm thành viên vào dự án
+// Thêm thành viên vào dự án (POST)
 router.post('/:projectId/members', verifyToken, projectController.addMember);
 
-// API cập nhật task (đổi trạng thái, sửa nội dung)
-router.put('/:projectId/tasks/:taskId', verifyToken, projectTaskController.updateTask);
+// ==================== CÁC ROUTE TASK CỦA DỰ ÁN ====================
+// Lấy danh sách task trong dự án (GET)
+router.get('/:projectId/tasks', verifyToken, projectTaskController.getProjectTasks);
 
-// API Sửa & Xóa Task trong dự án
+// Tạo task mới trong dự án (POST)
+router.post('/:projectId/tasks', verifyToken, projectTaskController.createProjectTask);
+
+// Sửa & Xóa Task trong dự án
 router.put('/:projectId/tasks/:taskId', verifyToken, projectTaskController.updateProjectTask);
 router.delete('/:projectId/tasks/:taskId', verifyToken, projectTaskController.deleteProjectTask);
-
-router.delete("/:id", verifyToken, projectController.deleteProject);
 
 module.exports = router;

@@ -119,32 +119,51 @@ const Project = {
     }
 };
 
-// Thêm vào bên trong đối tượng Project trong file src/models/project.model.js
+// Thay thế hàm deleteProject trong src/models/project.model.js
 
 deleteProject: (projectId, userId, callback) => {
     // 1. Kiểm tra xem người dùng có phải Leader của dự án không
     const checkLeaderSql = "SELECT role FROM Project_Members WHERE project_id = ? AND user_id = ?";
     
     db.query(checkLeaderSql, [projectId, userId], (err, members) => {
-        if (err) return callback(err, null);
+        if (err) {
+            console.error("Lỗi kiểm tra quyền Leader:", err);
+            return callback(err, null);
+        }
 
-        if (members.length === 0 || (members[0].role || '').toLowerCase() !== 'leader') {
+        if (!members || members.length === 0 || (members[0].role || '').toLowerCase() !== 'leader') {
             return callback(new Error("Unauthorized"), null);
         }
 
-        // 2. Xóa tất cả các task liên quan trong bảng 'task'
-        const deleteTasksSql = "DELETE FROM task WHERE project_id = ?";
-        db.query(deleteTasksSql, [projectId], (err) => {
-            if (err) return callback(err, null);
+        // 2. Tắt kiểm tra khóa ngoại tạm thời để xóa liên hoàn không bị vướng FK Constraint
+        db.query("SET FOREIGN_KEY_CHECKS = 0", (err) => {
+            if (err) console.error("Lỗi tắt FK check:", err);
 
-            // 3. Xóa tất cả thành viên trong bảng 'Project_Members'
-            const deleteMembersSql = "DELETE FROM Project_Members WHERE project_id = ?";
-            db.query(deleteMembersSql, [projectId], (err) => {
-                if (err) return callback(err, null);
+            // 3. Xóa toàn bộ task của dự án trong bảng 'task'
+            db.query("DELETE FROM task WHERE project_id = ?", [projectId], (err) => {
+                if (err) console.error("Lỗi xóa task:", err);
 
-                // 4. Xóa dự án trong bảng 'Projects'
-                const deleteProjectSql = "DELETE FROM Projects WHERE project_id = ?";
-                db.query(deleteProjectSql, [projectId], callback);
+                // 4. Xóa toàn bộ thành viên trong bảng 'Project_Members'
+                db.query("DELETE FROM Project_Members WHERE project_id = ?", [projectId], (err) => {
+                    if (err) {
+                        console.error("Lỗi xóa Project_Members:", err);
+                        db.query("SET FOREIGN_KEY_CHECKS = 1");
+                        return callback(err, null);
+                    }
+
+                    // 5. Xóa chính dự án trong bảng 'Projects'
+                    db.query("DELETE FROM Projects WHERE project_id = ?", [projectId], (err, result) => {
+                        // Luôn bật lại kiểm tra khóa ngoại
+                        db.query("SET FOREIGN_KEY_CHECKS = 1");
+
+                        if (err) {
+                            console.error("Lỗi xóa Projects:", err);
+                            return callback(err, null);
+                        }
+
+                        return callback(null, result);
+                    });
+                });
             });
         });
     });
