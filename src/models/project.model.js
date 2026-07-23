@@ -1,7 +1,7 @@
 const db = require("../config/db");
 
 const Project = {
-    // 1. Lấy danh sách dự án (Đã bổ sung p.description và lấy tên Trưởng dự án - Leader)
+    // 1. Lấy danh sách dự án
     getProjectsByUser: (userId, callback) => {
         const sql = `
             SELECT 
@@ -25,7 +25,7 @@ const Project = {
         db.query(sql, [userId], callback);
     },
     
-    // 2. Lấy chi tiết dự án (kèm thông tin thành viên có u.name và u.email)
+    // 2. Lấy chi tiết dự án
     getProjectById: (projectId, userId, callback) => {
         const checkMemberSql = `SELECT role FROM Project_Members WHERE project_id = ? AND user_id = ?`;
         db.query(checkMemberSql, [projectId, userId], (err, memberRes) => {
@@ -70,8 +70,7 @@ const Project = {
 
             const insertProjectSql = 'INSERT INTO Projects (name, description) VALUES (?, ?)';
             db.query(insertProjectSql, [name, description], (err, projectResult) => {
-                if (err) {
-                    return db.rollback(() => callback(err, null));
+                if (err) {return db.rollback(() => callback(err, null));
                 }
 
                 const projectId = projectResult.insertId;
@@ -116,70 +115,67 @@ const Project = {
                 db.query(insertSql, [projectId, userId, role || 'Member'], callback);
             });
         });
-    }
-};
+    },
 
-// Thay thế hàm deleteProject trong src/models/project.model.js
-
-deleteProject: (projectId, userId, callback) => {
-    // 1. Mượn 1 kết nối duy nhất (conn) từ Pool
-    db.getConnection((err, conn) => {
-        if (err) {
-            console.error("Lỗi lấy kết nối DB:", err);
-            return callback(err, null);
-        }
-
-        // 2. Kiểm tra quyền Leader
-        const checkLeaderSql = "SELECT role FROM Project_Members WHERE project_id = ? AND user_id = ?";
-        conn.query(checkLeaderSql, [projectId, userId], (err, members) => {
+    // 5. Xóa dự án (ĐÃ ĐƯỢC CHUYỂN VÀO TRONG OBJECT PROJECT)
+    deleteProject: (projectId, userId, callback) => {
+        // 1. Mượn 1 kết nối duy nhất (conn) từ Pool
+        db.getConnection((err, conn) => {
             if (err) {
-                conn.release(); // Luôn giải phóng kết nối khi gặp lỗi
+                console.error("Lỗi lấy kết nối DB:", err);
                 return callback(err, null);
             }
 
-            if (!members || members.length === 0 || (members[0].role || '').toLowerCase() !== 'leader') {
-                conn.release();
-                return callback(new Error("Unauthorized"), null);
-            }
-
-            // 3. Tắt kiểm tra khóa ngoại TRÊN CHÍNH KẾT NỐI NÀY
-            conn.query("SET FOREIGN_KEY_CHECKS = 0", (err) => {
+            // 2. Kiểm tra quyền Leader
+            const checkLeaderSql = "SELECT role FROM Project_Members WHERE project_id = ? AND user_id = ?";
+            conn.query(checkLeaderSql, [projectId, userId], (err, members) => {
                 if (err) {
-                    conn.release();
+                    conn.release(); // Luôn giải phóng kết nối khi gặp lỗi
                     return callback(err, null);
                 }
 
-                // 4. Xóa các task liên quan
-                conn.query("DELETE FROM task WHERE project_id = ?", [projectId], () => {
-                    conn.query("DELETE FROM tasks WHERE project_id = ?", [projectId], () => {
-                        
-                        // 5. Xóa danh sách thành viên dự án
-                        conn.query("DELETE FROM Project_Members WHERE project_id = ?", [projectId], (err) => {
-                            if (err) {
-                                conn.query("SET FOREIGN_KEY_CHECKS = 1");
-                                conn.release();
-                                return callback(err, null);
-                            }
+                if (!members || members.length === 0 || (members[0].role || '').toLowerCase() !== 'leader') {
+                    conn.release();
+                    return callback(new Error("Unauthorized"), null);
+                }// 3. Tắt kiểm tra khóa ngoại TRÊN CHÍNH KẾT NỐI NÀY
+                conn.query("SET FOREIGN_KEY_CHECKS = 0", (err) => {
+                    if (err) {
+                        conn.release();
+                        return callback(err, null);
+                    }
 
-                            // 6. Xóa chính dự án
-                            conn.query("DELETE FROM Projects WHERE project_id = ?", [projectId], (err, result) => {
-                                // Mở lại kiểm tra khóa ngoại & trả kết nối về Pool
-                                conn.query("SET FOREIGN_KEY_CHECKS = 1");
-                                conn.release();
-
+                    // 4. Xóa các task liên quan
+                    conn.query("DELETE FROM task WHERE project_id = ?", [projectId], () => {
+                        conn.query("DELETE FROM tasks WHERE project_id = ?", [projectId], () => {
+                            
+                            // 5. Xóa danh sách thành viên dự án
+                            conn.query("DELETE FROM Project_Members WHERE project_id = ?", [projectId], (err) => {
                                 if (err) {
-                                    console.error("Lỗi xóa dự án:", err);
+                                    conn.query("SET FOREIGN_KEY_CHECKS = 1");
+                                    conn.release();
                                     return callback(err, null);
                                 }
 
-                                return callback(null, result);
+                                // 6. Xóa chính dự án
+                                conn.query("DELETE FROM Projects WHERE project_id = ?", [projectId], (err, result) => {
+                                    // Mở lại kiểm tra khóa ngoại & trả kết nối về Pool
+                                    conn.query("SET FOREIGN_KEY_CHECKS = 1");
+                                    conn.release();
+
+                                    if (err) {
+                                        console.error("Lỗi xóa dự án:", err);
+                                        return callback(err, null);
+                                    }
+
+                                    return callback(null, result);
+                                });
                             });
                         });
                     });
                 });
             });
         });
-    });
-}
+    }
+};
 
 module.exports = Project;
