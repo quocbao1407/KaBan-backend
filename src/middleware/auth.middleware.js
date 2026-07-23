@@ -1,24 +1,30 @@
-const jwt = require('jsonwebtoken');
+const express = require("express");
+const router = express.Router();
+const authController = require("../controllers/auth.controller");
 
-exports.verifyToken = (req, res, next) => {
-  const authHeader = req.headers.authorization;
+// Sửa dòng này: Bổ sung { verifyToken } để giải nén hàm từ object export
+const { verifyToken } = require("../middleware/auth.middleware");
 
-  // FE sẽ gửi token có dạng: "Bearer asdfghjkl..."
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Không có quyền truy cập, vui lòng đăng nhập!' });
-  }
+router.get("/test", (req, res) => {
+    res.json({
+        message: "Auth route is working"
+    });
+});
 
-  const token = authHeader.split(' ')[1];
+// Register (Đăng ký)
+router.post("/register", authController.register);
 
-  try {
-    // Giải mã token xem có đúng do mình cấp không
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Gắn user_id vào request để các hàm phía sau lấy được
-    req.user_id = decoded.id; 
-    
-    next(); // Cho phép đi tiếp vào Controller
-  } catch (error) {
-    return res.status(401).json({ message: 'Token không hợp lệ hoặc đã hết hạn!' });
-  }
-};
+// Login (Đăng nhập)
+router.post("/login", authController.login);
+
+// --- CÁC ROUTE CẦN ĐĂNG NHẬP (DÙNG CHO TRANG SETTINGS) ---
+// 1. Lấy thông tin user hiện tại
+router.get("/me", verifyToken, authController.getMe);
+
+// 2. Cập nhật Họ và tên
+router.put("/profile", verifyToken, authController.updateProfile);
+
+// 3. Đổi mật khẩu
+router.put("/change-password", verifyToken, authController.changePassword);
+
+module.exports = router;
