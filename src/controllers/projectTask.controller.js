@@ -52,3 +52,29 @@ exports.updateTask = (req, res) => {
         return res.status(200).json({ success: true, message: "Cập nhật công việc thành công!" });
     });
 };
+// Xóa task dự án
+exports.deleteProjectTask = (req, res) => {
+    const { taskId } = req.params;
+
+    ProjectTask.deleteTask(taskId, (err, result) => {
+        if (err) {
+            console.error("Lỗi xóa task:", err);
+            return res.status(500).json({ success: false, message: "Lỗi máy chủ!" });
+        }
+        return res.status(200).json({ success: true, message: "Xóa công việc thành công!" });
+    });
+};
+
+// Cập nhật task dự án (Nội dung, người thực hiện, hạn chót, trạng thái)
+exports.updateProjectTask = (req, res) => {
+    const { taskId } = req.params;
+    const taskData = req.body;
+
+    ProjectTask.updateTask(taskId, taskData, (err, result) => {
+        if (err) {
+            console.error("Lỗi cập nhật task:", err);
+            return res.status(500).json({ success: false, message: "Lỗi máy chủ!" });
+        }
+        return res.status(200).json({ success: true, message: "Cập nhật công việc thành công!" });
+    });
+};

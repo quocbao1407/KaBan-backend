@@ -28,4 +28,8 @@ router.post('/:projectId/members', verifyToken, projectController.addMember);
 // API cập nhật task (đổi trạng thái, sửa nội dung)
 router.put('/:projectId/tasks/:taskId', verifyToken, projectTaskController.updateTask);
 
+// API Sửa & Xóa Task trong dự án
+router.put('/:projectId/tasks/:taskId', verifyToken, projectTaskController.updateProjectTask);
+router.delete('/:projectId/tasks/:taskId', verifyToken, projectTaskController.deleteProjectTask);
+
 module.exports = router;
