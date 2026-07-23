@@ -162,5 +162,30 @@ const Project = {
         });
     }
 };
+// Thêm vào bên trong object Project trong src/models/project.model.js
+removeMember: (projectId, memberId, requestUserId, callback) => {
+    // 1. Kiểm tra quyền Leader của người thực hiện thao tác
+    const checkLeaderSql = "SELECT role FROM Project_Members WHERE project_id = ? AND user_id = ?";
+    db.query(checkLeaderSql, [projectId, requestUserId], (err, results) => {
+        if (err) return callback(err, null);
+
+        // Nêu không phải Leader -> Không có quyền
+        if (!results || results.length === 0 || (results[0].role || '').toLowerCase() !== 'leader') {
+            return callback(new Error("Unauthorized"), null);
+        }
+
+        // 2. Chặn Leader tự xóa chính mình khỏi dự án
+        if (parseInt(memberId) === parseInt(requestUserId)) {
+            return callback(new Error("CannotRemoveSelf"), null);
+        }
+
+        // 3. Xóa thành viên khỏi dự án trong CSDL
+        const deleteSql = "DELETE FROM Project_Members WHERE project_id = ? AND user_id = ?";
+        db.query(deleteSql, [projectId, memberId], (err, result) => {
+            if (err) return callback(err, null);
+            return callback(null, result);
+        });
+    });
+}
 
 module.exports = Project;

@@ -131,3 +131,26 @@ exports.deleteProject = (req, res) => {
         });
     });
 };
+// Thêm vào src/controllers/project.controller.js
+exports.removeMember = (req, res) => {
+    const { projectId, memberId } = req.params;
+    const requestUserId = req.user_id; // Lấy từ middleware verifyToken
+
+    Project.removeMember(projectId, memberId, requestUserId, (err, result) => {
+        if (err) {
+            if (err.message === "Unauthorized") {
+                return res.status(403).json({ success: false, message: "Chỉ Trưởng dự án mới có quyền xóa thành viên!" });
+            }
+            if (err.message === "CannotRemoveSelf") {
+                return res.status(400).json({ success: false, message: "Bạn không thể tự xóa chính mình khỏi dự án!" });
+            }
+            console.error("Lỗi xóa thành viên:", err);
+            return res.status(500).json({ success: false, message: "Lỗi máy chủ khi xóa thành viên!" });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Đã xóa thành viên khỏi dự án thành công!"
+        });
+    });
+};

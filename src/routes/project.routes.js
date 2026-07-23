@@ -33,4 +33,7 @@ router.post('/:projectId/tasks', verifyToken, projectTaskController.createProjec
 router.put('/:projectId/tasks/:taskId', verifyToken, projectTaskController.updateProjectTask);
 router.delete('/:projectId/tasks/:taskId', verifyToken, projectTaskController.deleteProjectTask);
 
+// Thêm dòng này vào file route của Project
+router.delete('/:projectId/members/:memberId', verifyToken, projectController.removeMember);
+
 module.exports = router;
