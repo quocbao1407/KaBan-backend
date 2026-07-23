@@ -100,11 +100,15 @@ exports.addMember = (req, res) => {
     });
 };
 
-// Cập nhật hàm deleteProject trong file src/controllers/project.controller.js
+// Cập nhật hàm deleteProject trong src/controllers/project.controller.js
 
 exports.deleteProject = (req, res) => {
     const projectId = req.params.projectId || req.params.id;
     const userId = req.user_id;
+
+    if (!userId) {
+        return res.status(401).json({ success: false, message: "Thiếu thông tin xác thực Token!" });
+    }
 
     Project.deleteProject(projectId, userId, (err, result) => {
         if (err) {
@@ -114,11 +118,10 @@ exports.deleteProject = (req, res) => {
                     message: "Chỉ Trưởng dự án (Leader) mới được phép xóa dự án này!" 
                 });
             }
-            console.error("Lỗi xóa dự án:", err);
+            console.error("Lỗi xóa dự án SQL:", err);
             return res.status(500).json({ 
                 success: false, 
-                message: "Lỗi máy chủ khi xóa dự án!", 
-                errorDetail: err.message 
+                message: `Lỗi CSDL khi xóa dự án: ${err.sqlMessage || err.message}` 
             });
         }
 

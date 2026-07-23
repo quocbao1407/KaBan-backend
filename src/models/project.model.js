@@ -122,46 +122,59 @@ const Project = {
 // Thay thế hàm deleteProject trong src/models/project.model.js
 
 deleteProject: (projectId, userId, callback) => {
-    // 1. Kiểm tra xem người dùng có phải Leader của dự án không
-    const checkLeaderSql = "SELECT role FROM Project_Members WHERE project_id = ? AND user_id = ?";
-    
-    db.query(checkLeaderSql, [projectId, userId], (err, members) => {
+    // 1. Mượn 1 kết nối duy nhất (conn) từ Pool
+    db.getConnection((err, conn) => {
         if (err) {
-            console.error("Lỗi kiểm tra quyền Leader:", err);
+            console.error("Lỗi lấy kết nối DB:", err);
             return callback(err, null);
         }
 
-        if (!members || members.length === 0 || (members[0].role || '').toLowerCase() !== 'leader') {
-            return callback(new Error("Unauthorized"), null);
-        }
+        // 2. Kiểm tra quyền Leader
+        const checkLeaderSql = "SELECT role FROM Project_Members WHERE project_id = ? AND user_id = ?";
+        conn.query(checkLeaderSql, [projectId, userId], (err, members) => {
+            if (err) {
+                conn.release(); // Luôn giải phóng kết nối khi gặp lỗi
+                return callback(err, null);
+            }
 
-        // 2. Tắt kiểm tra khóa ngoại tạm thời để xóa liên hoàn không bị vướng FK Constraint
-        db.query("SET FOREIGN_KEY_CHECKS = 0", (err) => {
-            if (err) console.error("Lỗi tắt FK check:", err);
+            if (!members || members.length === 0 || (members[0].role || '').toLowerCase() !== 'leader') {
+                conn.release();
+                return callback(new Error("Unauthorized"), null);
+            }
 
-            // 3. Xóa toàn bộ task của dự án trong bảng 'task'
-            db.query("DELETE FROM task WHERE project_id = ?", [projectId], (err) => {
-                if (err) console.error("Lỗi xóa task:", err);
+            // 3. Tắt kiểm tra khóa ngoại TRÊN CHÍNH KẾT NỐI NÀY
+            conn.query("SET FOREIGN_KEY_CHECKS = 0", (err) => {
+                if (err) {
+                    conn.release();
+                    return callback(err, null);
+                }
 
-                // 4. Xóa toàn bộ thành viên trong bảng 'Project_Members'
-                db.query("DELETE FROM Project_Members WHERE project_id = ?", [projectId], (err) => {
-                    if (err) {
-                        console.error("Lỗi xóa Project_Members:", err);
-                        db.query("SET FOREIGN_KEY_CHECKS = 1");
-                        return callback(err, null);
-                    }
+                // 4. Xóa các task liên quan
+                conn.query("DELETE FROM task WHERE project_id = ?", [projectId], () => {
+                    conn.query("DELETE FROM tasks WHERE project_id = ?", [projectId], () => {
+                        
+                        // 5. Xóa danh sách thành viên dự án
+                        conn.query("DELETE FROM Project_Members WHERE project_id = ?", [projectId], (err) => {
+                            if (err) {
+                                conn.query("SET FOREIGN_KEY_CHECKS = 1");
+                                conn.release();
+                                return callback(err, null);
+                            }
 
-                    // 5. Xóa chính dự án trong bảng 'Projects'
-                    db.query("DELETE FROM Projects WHERE project_id = ?", [projectId], (err, result) => {
-                        // Luôn bật lại kiểm tra khóa ngoại
-                        db.query("SET FOREIGN_KEY_CHECKS = 1");
+                            // 6. Xóa chính dự án
+                            conn.query("DELETE FROM Projects WHERE project_id = ?", [projectId], (err, result) => {
+                                // Mở lại kiểm tra khóa ngoại & trả kết nối về Pool
+                                conn.query("SET FOREIGN_KEY_CHECKS = 1");
+                                conn.release();
 
-                        if (err) {
-                            console.error("Lỗi xóa Projects:", err);
-                            return callback(err, null);
-                        }
+                                if (err) {
+                                    console.error("Lỗi xóa dự án:", err);
+                                    return callback(err, null);
+                                }
 
-                        return callback(null, result);
+                                return callback(null, result);
+                            });
+                        });
                     });
                 });
             });
